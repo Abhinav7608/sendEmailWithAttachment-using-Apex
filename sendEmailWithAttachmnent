@@ -1,0 +1,60 @@
+public without sharing class sendEmailWithAttachmnent {
+    
+    public static void sendEmail(case lscase){
+        List<ContentDocumentLink> caseDocumentLinks = [
+            SELECT ContentDocumentId
+            FROM ContentDocumentLink
+            WHERE LinkedEntityId =: lscase.Id];
+        
+        set<Id> sId = new set<Id>();
+        for(ContentDocumentLink cd : caseDocumentLinks ){
+            sId.add(cd.ContentDocumentId);
+        }
+        
+        List<ContentDocument> caseDocuments = [
+            SELECT Id, Title, FileExtension
+            FROM ContentDocument
+            WHERE Id IN :sId
+        ];
+        
+        // Assuming you want to send an email to a specific recipient with the attachment
+        String recipientEmail = 'raghujha.aj@gmail.com';
+        String subject = 'Attachment from Salesforce';
+        String body = 'Please find the attached file from Salesforce.';
+        
+        // Create an email message
+        Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
+        email.setToAddresses(new String[]{recipientEmail});
+        email.setSubject(subject);
+        email.setPlainTextBody(body);
+        
+        // Attach the ContentDocument to the email
+        for (ContentDocument document : caseDocuments) {
+            
+            // Query ContentVersion to get the file content
+            ContentVersion contentVersion = [
+                SELECT VersionData
+                FROM ContentVersion
+                WHERE ContentDocumentId = :document.Id
+                LIMIT 1
+            ];
+            
+            Messaging.EmailFileAttachment attachment = new Messaging.EmailFileAttachment();
+            attachment.setFileName(document.Title + '.' + document.FileExtension);
+            attachment.setBody(contentVersion.VersionData); // Assuming ContentDocument.Body is the file content
+            email.setFileAttachments(new Messaging.EmailFileAttachment[]{attachment});
+        }
+        
+        // Send the email
+        Messaging.SendEmailResult[] result = Messaging.sendEmail(new Messaging.SingleEmailMessage[]{email});
+        
+        // Check the result
+        if (result[0].success) {
+            System.debug('Email sent successfully');
+        } else {
+            System.debug('Email sending failed. Error: ' + result[0].errors[0].message);
+        }
+        
+    }
+    
+}
